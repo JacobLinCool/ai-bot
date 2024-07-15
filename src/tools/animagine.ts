@@ -118,13 +118,11 @@ export class AnimagineTool extends Tool {
 				true,
 			]);
 			const [images, metadata] = result.data as [{ image: FileData }[], unknown];
-			console.log(metadata);
+			console.log(images, metadata);
 			if (!images?.[0]?.image?.url) {
 				throw new Error("Failed to generate image.");
 			}
-			const imageBuffer = Buffer.from(
-				await fetch(images[0].image.url).then((response) => response.arrayBuffer()),
-			);
+			const imageBuffer = await fetchFile(images[0].image.url);
 
 			await interaction.editReply({
 				files: [new AttachmentBuilder(imageBuffer, { name: "image.png" })],
@@ -136,4 +134,15 @@ export class AnimagineTool extends Tool {
 			});
 		}
 	}
+}
+
+async function fetchFile(file: string): Promise<Buffer> {
+	let url = new URL(file);
+	if (ANIMAGINE_API.startsWith("http")) {
+		url = new URL(`${ANIMAGINE_API}${url.pathname}`);
+	}
+	console.log(url);
+	const response = await fetch(url);
+	const buffer = await response.arrayBuffer();
+	return Buffer.from(buffer);
 }
