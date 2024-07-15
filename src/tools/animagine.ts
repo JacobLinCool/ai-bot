@@ -38,13 +38,13 @@ export class AnimagineTool extends Tool {
 				.setName("style")
 				.setDescription("The style to use for generation.")
 				.addChoices(
+					{ value: "Cinematic", name: "Cinematic" },
 					{ name: "Pixel art", value: "Pixel art" },
 					{ value: "Digital Art", name: "Digital Art" },
+					{ value: "Fantasy art", name: "Fantasy art" },
 					{ value: "Manga", name: "Manga" },
 					{ value: "Anime", name: "Anime" },
 					{ value: "Photographic", name: "Photographic" },
-					{ value: "Cinematic", name: "Cinematic" },
-					{ value: "Fantasy art", name: "Fantasy art" },
 					{ value: "Neonpunk", name: "Neonpunk" },
 					{ value: "3D Model", name: "3D Model" },
 				)
@@ -82,7 +82,7 @@ export class AnimagineTool extends Tool {
 	async execute(interaction: ChatInputCommandInteraction<CacheType>): Promise<void> {
 		const prompt = interaction.options.getString("prompt", true);
 		const negtivePrompt = interaction.options.getString("negtive-prompt", false) || "";
-		const style = interaction.options.getString("style", false) || "Pixel art";
+		const style = interaction.options.getString("style", false) || "Cinematic";
 		const size = interaction.options.getString("size", false) || "896 x 1152";
 		const seed =
 			interaction.options.getInteger("seed", false) || Math.floor(Math.random() * 1000000);
