@@ -130,6 +130,7 @@ export class AnimagineTool extends Tool {
 				files: [new AttachmentBuilder(imageBuffer, { name: "image.png" })],
 			});
 		} catch (error) {
+			console.error(error);
 			await interaction.editReply({
 				content: error.message,
 			});

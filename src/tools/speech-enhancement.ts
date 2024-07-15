@@ -60,6 +60,7 @@ export class SpeechEnhancementTool extends Tool {
 				files: [new AttachmentBuilder(enhancedBuffer, { name: "enhanced.wav" })],
 			});
 		} catch (error) {
+			console.error(error);
 			await interaction.editReply({
 				content: error.message,
 			});

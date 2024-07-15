@@ -107,6 +107,7 @@ export class VocalSeparationTool extends Tool {
 				],
 			});
 		} catch (error) {
+			console.error(error);
 			await interaction.editReply({
 				content: error.message,
 			});
