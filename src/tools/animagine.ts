@@ -98,7 +98,12 @@ export class AnimagineTool extends Tool {
 		await interaction.deferReply();
 
 		try {
-			const client = await Client.connect(ANIMAGINE_API);
+			const replica = ANIMAGINE_API.startsWith("http")
+				? await resolveReplica("cagliostrolab", "animagine-xl-3.1")
+				: undefined;
+			const endpoint = replica ? `${ANIMAGINE_API}/--replicas/${replica}` : ANIMAGINE_API;
+			console.log(`Using endpoint: ${endpoint}`);
+			const client = await Client.connect(endpoint);
 
 			const result = await client.predict("/run", [
 				prompt,
@@ -122,7 +127,7 @@ export class AnimagineTool extends Tool {
 			if (!images?.[0]?.image?.url) {
 				throw new Error("Failed to generate image.");
 			}
-			const imageBuffer = await fetchFile(images[0].image.url);
+			const imageBuffer = await fetchFile(images[0].image.url, endpoint);
 
 			await interaction.editReply({
 				files: [new AttachmentBuilder(imageBuffer, { name: "image.png" })],
@@ -136,13 +141,93 @@ export class AnimagineTool extends Tool {
 	}
 }
 
-async function fetchFile(file: string): Promise<Buffer> {
-	let url = new URL(file);
-	if (ANIMAGINE_API.startsWith("http")) {
-		url = new URL(`${ANIMAGINE_API}${url.pathname}`);
+async function fetchFile(file: string, endpoint: string): Promise<Buffer> {
+	let url: URL;
+	try {
+		url = new URL(`${endpoint}${new URL(file).pathname}`);
+	} catch {
+		url = new URL(file);
 	}
-	console.log(url);
 	const response = await fetch(url);
 	const buffer = await response.arrayBuffer();
 	return Buffer.from(buffer);
+}
+
+async function readSSE(res: Response, event: string, count: number): Promise<string[]> {
+	const reader = res.body?.getReader();
+	if (!reader) {
+		throw new Error("Response body is not readable");
+	}
+
+	const decoder = new TextDecoder();
+	let eventCount = 0;
+	const events: string[] = [];
+
+	let line = "";
+	let flag = false;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			break;
+		}
+
+		const text = decoder.decode(value);
+		line += text;
+
+		while (line.includes("\n")) {
+			let [current, ...next] = line.split("\n");
+			line = next.join("\n");
+			current = current.trim();
+			if (!current) {
+				continue;
+			}
+
+			if (flag) {
+				events.push(current.slice(6));
+				flag = false;
+
+				eventCount++;
+				if (eventCount >= count) {
+					return events;
+				}
+			}
+			if (current.startsWith(`event: ${event}`)) {
+				flag = true;
+			}
+		}
+	}
+
+	return events;
+}
+
+async function resolveReplica(user: string, repo: string): Promise<string | undefined> {
+	try {
+		const url = `https://api.hf.space/v1/${user}/${repo}/live-metrics/sse`;
+		const res = await fetch(url);
+		if (!res.ok) {
+			throw new Error(`Failed to fetch replica: ${res.statusText}`);
+		}
+
+		const events = await readSSE(res, "metric", 5);
+		const metrics = events
+			.map((event) => {
+				try {
+					return JSON.parse(event);
+				} catch {
+					return undefined;
+				}
+			})
+			.filter(Boolean);
+		const replica: string | undefined =
+			metrics[Math.floor(Math.random() * metrics.length)].replica;
+		if (!replica) {
+			throw new Error("Replica not found in metrics");
+		}
+		console.log(`Selected replica: ${replica}`);
+
+		return replica;
+	} catch (e) {
+		console.error(e);
+		return undefined;
+	}
 }
